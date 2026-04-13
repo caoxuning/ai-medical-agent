@@ -1,0 +1,23 @@
+# 医疗问诊 Agent 系统依赖
+
+# Web 框架
+flask>=2.0.0
+flask-cors>=3.0.0
+
+# 数据处理（原项目依赖，保留）
+torch>=2.0.0
+transformers>=4.30.0
+numpy>=1.21.0
+
+# LLM API 客户端（推荐安装）
+zhipuai>=2.0.0
+
+# 可选：OpenAI API
+# openai>=1.0.0
+
+# 可选：向量数据库（用于知识库）
+# chromadb>=0.4.0
+
+# 开发工具
+pytest>=7.0.0
+black>=22.0.0

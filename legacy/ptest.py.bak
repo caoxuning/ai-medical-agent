@@ -1,0 +1,13 @@
+#  对象的反序列化
+# import pickle
+# with open('data/processed/valid_vector.pkl','rb') as f:
+#     dialogue_list = pickle.load(f)
+#     print(dialogue_list)
+
+import torch
+print(torch.__version__)
+print(torch.version.cuda)
+
+
+
+

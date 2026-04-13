@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data
+*.db
+*.sqlite3
+*.pkl
+
+# Model
+save_model/
+*.safetensors
+*.bin
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large files
+data/medical_knowledge/*.csv
+data/medical_knowledge/*.zip

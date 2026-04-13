@@ -1,0 +1,90 @@
+# 模型训练
+import torch
+import transformers
+
+from config import ParamConfig
+from transformers import GPT2Config, GPT2LMHeadModel
+from dataloader import get_dataloader
+
+params = ParamConfig()
+# 加载无预训练数据的GPT-2模型
+model_config = GPT2Config.from_json_file(params.model_config)
+model = GPT2LMHeadModel(config=model_config)
+
+model = model.to(params.device)
+print(model)
+
+train_dataloader, valid_dataloader = get_dataloader(params.train_path, params.valid_path)
+
+# 初始化优化器
+optimizer = torch.optim.AdamW(model.parameters(), lr=params.lr, eps=params.eps)
+
+# 学习率预热技术：没有先验数据的场景下
+total_step = len(train_dataloader) // params.batch_size * params.epochs
+scheduler = transformers.get_linear_schedule_with_warmup(
+    optimizer, num_warmup_steps=params.num_warmup_step,  # 预热步数：总训练步数的5-10%
+    num_training_steps=total_step  # 总训练步数，数据总量/batch_size * epochs
+)
+
+import datetime
+# 训练一个轮次
+def train_epoch(epoch):
+    model.train()  # 将模型设置为训练模式（可以更新参数的模式# ）
+    train_loss = 0.0
+    start_time = datetime.datetime.now()
+    for idx, (input_ids, labels) in enumerate(train_dataloader):
+        input_ids = input_ids.to(params.device)
+        labels = labels.to(params.device)
+        output = model(input_ids, labels=labels)
+        loss = output.loss  # 获取一个批次的损失
+        train_loss += loss.item()  # 统计一个轮次的损失
+        loss.backward()
+        # 梯度裁剪,防止梯度爆炸
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=params.max_norm)
+        if (idx + 1) % 4 == 0:  # 可以每n个批次更新一下参数
+            optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
+        if (idx + 1) % 100 == 0:  # 每n个批次输出一次
+            # Epoch [1/2], Step [30/1778], Loss:XXXX
+            print(f'Epoch [{epoch + 1}/{params.epochs}], Step [{idx + 1}/{len(train_dataloader)}], Loss:{loss.item():.4f}')
+        del input_ids,labels # 释放内存
+    # 输出一个轮次的信息
+    avg_train_loss = train_loss/len(train_dataloader)
+    print(f'Epoch [{epoch + 1}/{params.epochs}], Train Loss:{avg_train_loss}:.4f')
+    end_time = datetime.datetime.now()
+    print(f'Epoch [{epoch + 1}/{params.epochs}], Train Time:{end_time - start_time}')
+    return avg_train_loss
+
+def valid_epoch(epoch):
+    model.eval()#将模型设置为评估模式
+    valid_loss = 0.0
+    with torch.no_grad():
+        for idx,(input_ids,labels) in enumerate(valid_dataloader):
+            input_ids = input_ids.to(params.device)
+            labels = labels.to(params.device)
+            output = model(input_ids,labels=labels)
+            loss = output.loss
+            valid_loss += loss.item()
+            del input_ids,labels,output
+    avg_valid_loss=valid_loss/len(valid_dataloader)
+    print(f'Epoch [{epoch + 1}/{params.epochs}], Train Loss:{avg_valid_loss}:.4f')
+    return avg_valid_loss
+
+import  os
+
+def train():
+    print("开始训练啦嘻嘻嘻...")
+    # 循环轮次
+    for epoch in range(params.epochs):
+        # 训练一个轮次
+        train_loss = train_epoch(epoch)
+        # 模型评估
+        valid_loss = valid_epoch(epoch)
+        # 模型保存
+        if not os.path.exists(params.model_save_path):
+            os.makedirs(params.model_save_path)
+        model.save_pretrained(f'{params.model_save_path}/model_epoch_{epoch+1}')
+
+if __name__ == '__main__':
+    train()

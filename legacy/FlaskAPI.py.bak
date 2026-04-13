@@ -1,0 +1,96 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from transformers import GPT2LMHeadModel, BertTokenizerFast
+import torch
+import os
+import json
+
+app = Flask(__name__)
+CORS(app)  # 允许跨域请求
+
+
+# 配置参数类
+class ParamConfig:
+    def __init__(self):
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.max_length = 100
+
+
+params = ParamConfig()
+
+# 加载模型和分词器
+try:
+    model = GPT2LMHeadModel.from_pretrained('save_model/model2')
+    model = model.to(params.device)
+    model.eval()
+
+    tokenizer = BertTokenizerFast('data/vocab/vocab.txt',
+                                  sep_token="[SEP]",
+                                  pad_token="[PAD]",
+                                  cls_token="[CLS]")
+    print("模型加载成功")
+except Exception as e:
+    print(f"模型加载失败: {e}")
+    model = None
+
+
+# 处理对话请求的API端点
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    try:
+        if model is None:
+            return jsonify({"error": "模型未成功加载"}), 500
+
+        # 获取用户输入
+        data = request.json
+        text = data.get('text', '')
+
+        if not text:
+            return jsonify({"error": "请提供输入文本"}), 400
+
+        # 对输入的对话进行分词
+        text_ids = tokenizer.encode(text, add_special_tokens=False)
+        input_ids = [tokenizer.cls_token_id] + text_ids + [tokenizer.sep_token_id]
+
+        # 将输入的对话转换为张量
+        input_ids = torch.tensor(input_ids).unsqueeze(0).to(params.device)
+
+        # 生成回答
+        response = []
+        for _ in range(params.max_length):
+            # 生成回答
+            outputs = model(input_ids=input_ids)
+            # 获取模型的预测结果
+            next_token_logits = outputs.logits[0, -1, :]
+            # 对预测结果进行softmax，得到概率分布
+            next_token_probs = torch.softmax(next_token_logits, dim=-1)
+            # 从概率分布中采样一个token
+            next_token_id = torch.multinomial(next_token_probs, num_samples=1)
+            # 如果采样的token是[SEP]，则结束生成
+            if next_token_id.item() == tokenizer.sep_token_id:
+                break
+            # 将采样的token添加到回答中
+            response.append(next_token_id.item())
+            # 将采样的token添加到输入中
+            input_ids = torch.cat([input_ids, next_token_id.unsqueeze(0)], dim=-1)
+
+        # 将回答转换为文本
+        response_text = tokenizer.convert_ids_to_tokens(response)
+        response_text = ''.join(response_text)
+
+        return jsonify({"response": response_text})
+
+    except Exception as e:
+        print(f"处理请求时出错: {e}")
+        return jsonify({"error": "处理请求时出错"}), 500
+
+
+# 主页路由
+@app.route('/')
+def index():
+    return "欢迎使用智能对话API服务"
+
+
+if __name__ == '__main__':
+    # 注意：在生产环境中应使用生产级WSGI服务器，如Gunicorn或uWSGI
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,0 +1,48 @@
+import pickle
+from dataset import MyDataset
+from config import ParamConfig
+
+param = ParamConfig()
+
+
+# 定义一个函数读取训练和验证数据,封装到dataset中
+def load_dataset(train_path, valid_path):
+    with open(train_path, 'rb') as f:
+        train_list = pickle.load(f)
+    with open(valid_path, 'rb') as f:
+        valid_list = pickle.load(f)
+    train_dataset = MyDataset(train_list, param.max_length)
+    valid_dataset = MyDataset(valid_list, param.max_length)
+
+    return train_dataset, valid_dataset
+
+
+from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
+
+
+def collate_fn(batch):  # 在进行批次加载时如果需要对数据进行进一步处理，可以在此函数中完成
+    # 填充序列
+    input_ids = pad_sequence(batch, batch_first=True, padding_value=0)
+    labels = pad_sequence(batch, batch_first=True, padding_value=-100)
+    return input_ids, labels
+
+
+# 按批次获取数据
+def get_dataloader(train_path, valid_path):
+    # 获取所有数据
+    train_dataset, valid_dataset = load_dataset(train_path, valid_path)
+    # 按批次获取数据
+    train_dataloader = DataLoader(train_dataset, batch_size=param.batch_size,
+                                  shuffle=True, collate_fn=collate_fn, drop_last=True)
+    # 获取一个数据后，将下一个数据随机打散后，再取下一个批次样本
+    valid_dataloader = DataLoader(valid_dataset, batch_size=param.batch_size,
+                                  shuffle=True, collate_fn=collate_fn, drop_last=True)
+    return train_dataloader,valid_dataloader
+
+if __name__ == '__main__':
+    train_dataloader,valid_dataloader = get_dataloader(param.train_path,param.valid_path)
+    for input_ids,label in valid_dataloader:
+        print(input_ids)
+        print(label)
+        break

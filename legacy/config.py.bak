@@ -1,0 +1,24 @@
+# 参数配置文件
+import torch
+
+
+class ParamConfig():
+    def __init__(self):
+        self.device = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
+
+        self.max_length = 300  # 句子最大长度
+
+        self.batch_size = 32 #批次数量
+
+        self.train_path = 'data/processed/train.pkl'
+        self.valid_path = 'data/processed/valid.pkl'
+
+        self.model_config = 'config/config.json'
+
+        self.epochs = 30
+        self.max_norm = 2
+        self.lr = 5e-8
+        self.eps = 1e-8
+        self.num_warmup_step = 20
+
+        self.model_save_path = 'save_model'

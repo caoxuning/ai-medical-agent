@@ -1,0 +1,68 @@
+# 初始化tokenizer
+import pickle
+
+from sklearn.model_selection import train_test_split
+from transformers import BertTokenizerFast
+
+tokenizer = BertTokenizerFast('vocab/vocab.txt',
+                              sep_token='[SEP]',
+                              cls_token='[CLS]',
+                              pad_token='[PAD]')
+
+
+def load_corpus(file_path):
+    """从文本文件加载语料库"""
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # 按空行分割记录
+    records = [record.strip() for record in content.split('\n\n') if record.strip()]
+
+    dialogues = []
+    for record in records:
+        # 分割问题和答案
+        parts = [part.strip() for part in record.split('\n') if part.strip()]
+        if len(parts) >= 2:
+            question = parts[0]
+            answer = parts[1]
+            dialogues.append((question, answer))
+
+    return dialogues
+
+
+def convert_to_bert_input(dialogues):
+    """将对话转换为BERT输入格式"""
+    dialogue_list = []
+    for q, a in dialogues:
+        input_ids = [tokenizer.cls_token_id]
+        input_ids += tokenizer.encode(q, add_special_tokens=False)
+        input_ids += [tokenizer.sep_token_id]
+        input_ids += tokenizer.encode(a, add_special_tokens=False)
+        input_ids += [tokenizer.sep_token_id]
+        dialogue_list.append(input_ids)
+    return dialogue_list
+
+
+# 1. 加载语料库
+corpus = load_corpus('data/medical.txt')
+print(f"总共加载 {len(corpus)} 条对话记录")
+
+# 2. 转换为BERT输入格式
+bert_inputs = convert_to_bert_input(corpus)
+
+# 3. 分割训练集和测试集 (9:1比例)
+train_data, valid_data = train_test_split(bert_inputs, test_size=0.1, random_state=42)
+
+# 4. 保存训练集和测试集
+with open('data/train.pkl', 'wb') as f:
+    pickle.dump(train_data, f)
+
+with open('data/valid.pkl', 'wb') as f:
+    pickle.dump(valid_data, f)
+
+print("预处理完成！")
+print(f"训练集样本数: {len(train_data)}")
+print(f"测试集样本数: {len(valid_data)}")
+print("\n示例样本:")
+print("原始文本:", corpus[0])
+print("BERT输入:", bert_inputs[0])

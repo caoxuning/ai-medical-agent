@@ -1,0 +1,31 @@
+# 把数据先存储到dataset中
+# 获取批次数据dataloader
+import pickle
+import torch
+from torch.utils.data import Dataset
+from config import ParamConfig
+
+param = ParamConfig()
+class MyDataset(Dataset):
+    def __init__(self,input_list,max_length):#一句问答最长字的个数
+        super(MyDataset,self).__init__()
+        self.input_list = input_list
+        self.max_length = max_length
+
+    # 返回总样本个数
+    def __len__(self):
+        return len(self.input_list)
+
+    # 获取一条样本
+    def __getitem__(self, idx):
+        input_ids = self.input_list[idx]
+        input_ids = input_ids[:self.max_length]#截取
+        input_ids = torch.tensor(input_ids,dtype=torch.long)
+        return input_ids
+
+
+if __name__ == '__main__':
+    with open('data/processed/valid_vector.pkl','rb') as f:
+        valid_data = pickle.load(f)
+        myDataset = MyDataset(valid_data,param.max_length)
+        print(myDataset[20])
