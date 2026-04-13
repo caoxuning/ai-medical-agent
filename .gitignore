@@ -32,5 +32,14 @@ save_model/
 Thumbs.db
 
 # Large files
-data/medical_knowledge/*.csv
-data/medical_knowledge/*.zip
+data/medical_knowledge/
+data/nursing/
+data/processed/
+data/raw/
+data/*.db
+*.csv
+*.zip
+*.json
+*.pkl
+*.safetensors
+*.bin
